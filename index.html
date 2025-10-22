@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FranceGen - Authenticator & Identity</title>
+    
+    <!-- Google Fonts: Inter & Roboto Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet">
+
+    <!-- Ikon (Feather Icons) -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Library OTPAuth.js -->
+    <script src="https://cdn.jsdelivr.net/npm/otpauth@9.1.3/dist/otpauth.umd.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #f4f7f9;
+            --text-color: #333;
+            --primary-color: #0055a4;
+            --primary-hover: #003d73;
+            --secondary-color: #ef4135;
+            --card-bg: #ffffff;
+            --card-border: #dee2e6;
+            --heading-color: #000;
+            --label-color: #6c757d;
+            --success-color: #28a745;
+        }
+        [data-theme="dark"] {
+            --bg-color: #0a101f; --text-color: #adb5bd; --primary-color: #5d9cec; --primary-hover: #82b1ff;
+            --secondary-color: #ff5252; --card-bg: #151c2c; --card-border: #343a40; --heading-color: #fff;
+            --label-color: #89929b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif; background-color: var(--bg-color); color: var(--text-color);
+            transition: background-color 0.3s; display: flex; justify-content: center; align-items: center; min-height: 100vh;
+        }
+        .container { max-width: 600px; width: 100%; padding: 20px; }
+        .main-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; margin-bottom: 20px; }
+        .logo { font-weight: 700; font-size: 1.8rem; color: var(--heading-color); }
+        .theme-switcher { background: none; border: none; cursor: pointer; color: var(--text-color); }
+        .card { background-color: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 25px; margin-bottom: 20px; }
+        .data-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--card-border); font-size: 0.95rem; }
+        .data-row:last-child { border-bottom: none; }
+        .data-label { color: var(--label-color); font-weight: 600; }
+        .data-value { font-weight: 600; color: var(--heading-color); }
+        .value-wrapper { display: flex; align-items: center; }
+        .email-link { color: var(--text-color); text-decoration: none; font-weight: 600; word-break: break-all; }
+        .email-link:hover { color: var(--primary-color); }
+        .copy-btn { background: none; border: none; color: var(--label-color); cursor: pointer; margin-left: 15px; }
+        .copy-btn:hover { color: var(--primary-color); }
+        .authenticator-section { padding: 15px 0; }
+        .secret-input-wrapper { position: relative; margin-bottom: 20px; }
+        #secret-key-input {
+            width: 100%; padding: 12px 40px 12px 12px; font-family: 'Roboto Mono', monospace; border: 2px dashed var(--card-border);
+            border-radius: 8px; background-color: var(--bg-color); color: var(--text-color); text-align: center;
+            font-size: 1rem; cursor: pointer;
+        }
+        #secret-key-input:focus { border-style: solid; border-color: var(--primary-color); outline: none; }
+        #clear-secret-btn {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none;
+            cursor: pointer; color: var(--secondary-color); display: none;
+        }
+        .totp-display { text-align: center; }
+        #totp-code {
+            font-size: 3rem; font-weight: 700; color: var(--primary-color); font-family: 'Roboto Mono', monospace;
+            letter-spacing: 5px; height: 60px; line-height: 60px; cursor: pointer; transition: transform 0.1s ease;
+        }
+        #totp-code:active { transform: scale(0.98); }
+        .progress-bar-container { height: 4px; background-color: var(--card-border); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+        .progress-bar { height: 100%; width: 100%; background-color: var(--secondary-color); border-radius: 2px; }
+        .progress-bar.active { animation: countdown 30s linear infinite; }
+        @keyframes countdown { from { width: 100%; } to { width: 0%; } }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header class="main-header">
+            <div class="logo">FranceGen</div>
+            <button class="theme-switcher" id="theme-toggle" aria-label="Toggle dark mode"><i data-feather="moon"></i></button>
+        </header>
+
+        <main>
+            <!-- Authenticator Card -->
+            <div class="card">
+                <div class="authenticator-section">
+                    <div class="secret-input-wrapper">
+                        <input type="text" id="secret-key-input" placeholder="Tempel kunci rahasia 2FA di sini...">
+                        <button id="clear-secret-btn" title="Hapus kunci"><i data-feather="x-circle"></i></button>
+                    </div>
+                    <div class="totp-display">
+                        <div id="totp-code" title="Klik untuk menyalin kode">- - -  - - -</div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="totp-progress"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Identity Card -->
+            <div class="card">
+                <div class="data-row">
+                    <span class="data-label">Nom Complet</span>
+                    <div class="value-wrapper">
+                        <span class="data-value" id="full-name">Générer un nom...</span>
+                        <button class="copy-btn" data-target="full-name"><i data-feather="copy"></i></button>
+                    </div>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Email Temporaire</span>
+                    <div class="value-wrapper">
+                         <a href="https://emailfake.com/" target="_blank" class="email-link" id="fake-email-link">Générer un email...</a>
+                         <button class="copy-btn" data-target-link="fake-email-link"><i data-feather="copy"></i></button>
+                    </div>
+                </div>
+                 <button id="generate-identity-btn" style="width: 100%; padding: 10px; margin-top: 20px; background-color: var(--primary-color); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Générer une Identité</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- **PENTING**: Memuat file data sebelum logika utama -->
+    <script src="data.js"></script>
+
+    <script>
+        feather.replace();
+        // Theme switcher logic ...
+        const themeToggle = document.getElementById('theme-toggle');
+        const sunIcon = '<i data-feather="sun"></i>', moonIcon = '<i data-feather="moon"></i>';
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme) {
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            if (currentTheme === 'dark') themeToggle.innerHTML = sunIcon;
+        }
+        themeToggle.addEventListener('click', () => {
+            let theme = document.documentElement.getAttribute('data-theme');
+            if (theme === 'dark') {
+                document.documentElement.removeAttribute('data-theme'); localStorage.setItem('theme', 'light'); themeToggle.innerHTML = moonIcon;
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark'); localStorage.setItem('theme', 'dark'); themeToggle.innerHTML = sunIcon;
+            }
+            feather.replace();
+        });
+
+        // --- AUTHENTICATOR LOGIC --- (no changes)
+        const secretInput = document.getElementById('secret-key-input');
+        const totpCodeElement = document.getElementById('totp-code');
+        const progressBar = document.getElementById('totp-progress');
+        const clearSecretBtn = document.getElementById('clear-secret-btn');
+        let totp = null;
+        let totpInterval = null;
+        function resetAuthenticatorState() { clearInterval(totpInterval); totp = null; totpCodeElement.textContent = "- - -  - - -"; progressBar.classList.remove('active'); clearSecretBtn.style.display = 'none'; }
+        function updateTotp() { if (!totp) return; const token = totp.generate(); totpCodeElement.textContent = `${token.slice(0, 3)} ${token.slice(3, 6)}`; }
+        secretInput.addEventListener('input', () => {
+            resetAuthenticatorState(); const cleanedValue = secretInput.value.replace(/\s/g, '').toUpperCase(); secretInput.value = cleanedValue;
+            if (cleanedValue.length > 0) { clearSecretBtn.style.display = 'block'; feather.replace(); }
+            if (cleanedValue.length < 16) return;
+            try {
+                totp = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(cleanedValue), period: 30 });
+                updateTotp(); progressBar.classList.add('active'); const seconds = new Date().getSeconds(); const timeToNext = (30 - (seconds % 30));
+                setTimeout(() => { updateTotp(); totpInterval = setInterval(updateTotp, 30000); }, timeToNext * 1000);
+            } catch (error) { totpCodeElement.textContent = "Kunci Invalid"; }
+        });
+        clearSecretBtn.addEventListener('click', () => { secretInput.value = ''; resetAuthenticatorState(); secretInput.focus(); });
+        totpCodeElement.addEventListener('click', () => {
+            const code = totpCodeElement.textContent.replace(/\s/g, '');
+            if (code && code.length === 6 && !isNaN(code)) {
+                navigator.clipboard.writeText(code).then(() => {
+                    const originalText = totpCodeElement.textContent; totpCodeElement.textContent = 'Tersalin!'; totpCodeElement.style.color = 'var(--success-color)';
+                    setTimeout(() => { totpCodeElement.textContent = originalText; totpCodeElement.style.color = 'var(--primary-color)'; }, 1500);
+                });
+            }
+        });
+        secretInput.addEventListener('click', () => {
+            const key = secretInput.value;
+            if (key) {
+                navigator.clipboard.writeText(key).then(() => {
+                    const originalPlaceholder = secretInput.placeholder; secretInput.placeholder = 'Kunci rahasia tersalin!'; secretInput.blur();
+                    setTimeout(() => { secretInput.placeholder = originalPlaceholder; }, 2000);
+                });
+            }
+        });
+
+        // --- IDENTITY GENERATOR LOGIC ---
+        function getRandomItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+        function randomNum(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+        function generateRandomString(length) {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < length; i++) { result += chars.charAt(Math.floor(Math.random() * chars.length)); }
+            return result;
+        }
+        
+        function generateIdentity() {
+            // Mengambil nama dari variabel DATA yang ada di file data.js
+            const fullName = getRandomItem(DATA.fr.female);
+            const emailUsername = generateRandomString(randomNum(8, 12));
+            const emailDomain = getRandomItem(DATA.emailFakeDomains);
+            const fakeEmail = `${emailUsername}@${emailDomain}`;
+            const inboxUrl = `https://emailfake.com/${emailDomain}/${emailUsername}`;
+            
+            const emailLinkElement = document.getElementById('fake-email-link');
+            document.getElementById('full-name').textContent = fullName;
+            emailLinkElement.textContent = fakeEmail;
+            emailLinkElement.href = inboxUrl;
+        }
+        
+        document.getElementById('generate-identity-btn').addEventListener('click', generateIdentity);
+        window.addEventListener('load', generateIdentity);
+
+        // Copy button logic ...
+        document.querySelectorAll('.copy-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                let value = '';
+                if (button.dataset.target) value = document.getElementById(button.dataset.target).textContent;
+                else if (button.dataset.targetLink) value = document.getElementById(button.dataset.targetLink).textContent;
+                navigator.clipboard.writeText(value).then(() => {
+                    const originalIcon = button.innerHTML;
+                    button.innerHTML = `<i data-feather="check" style="color: var(--success-color);"></i>`;
+                    feather.replace();
+                    setTimeout(() => { button.innerHTML = originalIcon; feather.replace(); }, 1500);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
