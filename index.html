@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FranceGen - Authenticator & Identity</title>
     
+    <!-- PWA Manifest & Theme Color -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0055a4">
+
     <!-- Google Fonts: Inter & Roboto Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic" crossorigin>
@@ -18,16 +22,9 @@
 
     <style>
         :root {
-            --bg-color: #f4f7f9;
-            --text-color: #333;
-            --primary-color: #0055a4;
-            --primary-hover: #003d73;
-            --secondary-color: #ef4135;
-            --card-bg: #ffffff;
-            --card-border: #dee2e6;
-            --heading-color: #000;
-            --label-color: #6c757d;
-            --success-color: #28a745;
+            --bg-color: #f4f7f9; --text-color: #333; --primary-color: #0055a4; --primary-hover: #003d73;
+            --secondary-color: #ef4135; --card-bg: #ffffff; --card-border: #dee2e6; --heading-color: #000;
+            --label-color: #6c757d; --success-color: #28a745;
         }
         [data-theme="dark"] {
             --bg-color: #0a101f; --text-color: #adb5bd; --primary-color: #5d9cec; --primary-hover: #82b1ff;
@@ -41,7 +38,12 @@
         }
         .container { max-width: 600px; width: 100%; padding: 20px; }
         .main-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; margin-bottom: 20px; }
+        
+        /* **BARU**: Style untuk logo dan kredit */
+        .logo-wrapper { text-align: left; }
         .logo { font-weight: 700; font-size: 1.8rem; color: var(--heading-color); }
+        .credit { font-size: 0.8rem; font-weight: 400; color: var(--label-color); margin-top: -5px; display: block; }
+
         .theme-switcher { background: none; border: none; cursor: pointer; color: var(--text-color); }
         .card { background-color: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 25px; margin-bottom: 20px; }
         .data-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--card-border); font-size: 0.95rem; }
@@ -81,7 +83,11 @@
 
     <div class="container">
         <header class="main-header">
-            <div class="logo">FranceGen</div>
+            <!-- **BARU**: Wrapper untuk logo dan kredit -->
+            <div class="logo-wrapper">
+                <div class="logo">FranceGen</div>
+                <span class="credit">by Bangdit28</span>
+            </div>
             <button class="theme-switcher" id="theme-toggle" aria-label="Toggle dark mode"><i data-feather="moon"></i></button>
         </header>
 
@@ -123,10 +129,19 @@
         </main>
     </div>
 
-    <!-- **PENTING**: Memuat file data sebelum logika utama -->
+    <!-- Memuat file data sebelum logika utama -->
     <script src="data.js"></script>
 
     <script>
+        // **BARU**: Mendaftarkan Service Worker untuk PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => console.log('Service Worker terdaftar: ', registration))
+                    .catch(err => console.log('Pendaftaran Service Worker gagal: ', err));
+            });
+        }
+
         feather.replace();
         // Theme switcher logic ...
         const themeToggle = document.getElementById('theme-toggle');
@@ -185,7 +200,7 @@
             }
         });
 
-        // --- IDENTITY GENERATOR LOGIC ---
+        // --- IDENTITY GENERATOR LOGIC --- (no changes)
         function getRandomItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
         function randomNum(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
         function generateRandomString(length) {
@@ -194,21 +209,17 @@
             for (let i = 0; i < length; i++) { result += chars.charAt(Math.floor(Math.random() * chars.length)); }
             return result;
         }
-        
         function generateIdentity() {
-            // Mengambil nama dari variabel DATA yang ada di file data.js
             const fullName = getRandomItem(DATA.fr.female);
             const emailUsername = generateRandomString(randomNum(8, 12));
             const emailDomain = getRandomItem(DATA.emailFakeDomains);
             const fakeEmail = `${emailUsername}@${emailDomain}`;
             const inboxUrl = `https://emailfake.com/${emailDomain}/${emailUsername}`;
-            
             const emailLinkElement = document.getElementById('fake-email-link');
             document.getElementById('full-name').textContent = fullName;
             emailLinkElement.textContent = fakeEmail;
             emailLinkElement.href = inboxUrl;
         }
-        
         document.getElementById('generate-identity-btn').addEventListener('click', generateIdentity);
         window.addEventListener('load', generateIdentity);
 
